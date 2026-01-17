@@ -1,0 +1,25 @@
+{
+  "raw_dir": "data/raw",
+  "state_dir": "data/state",
+  "log_dir": "logs",
+
+  "repo_sources": {
+    "orgs": ["apache", "kubernetes", "microsoft", "google", "hashicorp", "facebook", "aws", "grafana"],
+    "search_queries": [
+      "stars:>3000 language:Python",
+      "stars:>3000 language:JavaScript",
+      "stars:>3000 language:Java",
+      "stars:>3000 language:Go",
+      "stars:>3000 language:TypeScript"
+    ],
+    "max_repos_total": 1000
+  },
+
+  "issues_collection": {
+    "default_since": "2018-01-01T00:00:00Z",
+    "max_repos_per_run": 100,
+    "max_pages_per_repo": 200,
+    "include_state": "all"
+  }
+}
+
