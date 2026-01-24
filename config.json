@@ -4,22 +4,24 @@
   "log_dir": "logs",
 
   "repo_sources": {
-    "orgs": ["apache", "kubernetes", "microsoft", "google", "hashicorp", "facebook", "aws", "grafana"],
+    "orgs": ["kubernetes", "apache", "microsoft"],
     "search_queries": [
-      "stars:>3000 language:Python",
-      "stars:>3000 language:JavaScript",
-      "stars:>3000 language:Java",
-      "stars:>3000 language:Go",
-      "stars:>3000 language:TypeScript"
+      "stars:>5000 language:Python",
+      "stars:>5000 language:JavaScript",
+      "stars:>5000 language:Java"
     ],
-    "max_repos_total": 1000
+    "max_repos_total": 200
   },
 
   "issues_collection": {
-    "default_since": "2018-01-01T00:00:00Z",
-    "max_repos_per_run": 100,
-    "max_pages_per_repo": 200,
-    "include_state": "all"
+    "default_since": "2024-01-01T00:00:00Z",
+    "max_repos_per_run": 200,
+    "max_pages_per_repo": 50,
+    "include_state": "all",
+
+    "since_overlap_seconds": 600,
+
+    "collect_first_comment": true,
+    "max_first_comment_fetch": 400
   }
 }
-

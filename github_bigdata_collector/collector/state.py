@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 import os
 from typing import Any, Dict, Optional
@@ -50,39 +52,19 @@ def set_since(issues_state: Dict[str, Any], repo_full_name: str, since_iso: str)
         repos[repo_full_name] = entry
     entry["since"] = since_iso
 
-import os
-import json
-from typing import Dict
 
-
-def ensure_dir(path: str) -> None:
-    os.makedirs(path, exist_ok=True)
-
-
-def load_json(path: str, default: Dict) -> Dict:
-    if os.path.exists(path):
-        with open(path, "r", encoding="utf-8") as f:
-            return json.load(f)
-    return default
-
-
-def save_json(path: str, obj: Dict) -> None:
-    ensure_dir(os.path.dirname(path) or ".")
-    with open(path, "w", encoding="utf-8") as f:
-        json.dump(obj, f, ensure_ascii=False, indent=2)
-
-
-def repo_state_path(state_dir: str) -> str:
-    return os.path.join(state_dir, "repos_state.json")
-
-
-def issues_state_path(state_dir: str) -> str:
-    return os.path.join(state_dir, "issues_state.json")
-
-
-def get_since(issues_state: Dict, repo_full_name: str, default_since: str) -> str:
-    return issues_state.get("repos", {}).get(repo_full_name, {}).get("since", default_since)
-
-
-def set_since(issues_state: Dict, repo_full_name: str, since_iso: str) -> None:
-    issues_state.setdefault("repos", {}).setdefault(repo_full_name, {})["since"] = since_iso
+def set_repo_run_meta(
+    issues_state: Dict[str, Any],
+    repo_full_name: str,
+    *,
+    last_run_at: str,
+    collected_count: int,
+    truncated: bool,
+    status: str,
+) -> None:
+    repos = issues_state.setdefault("repos", {})
+    entry = repos.setdefault(repo_full_name, {})
+    entry["last_run_at"] = last_run_at
+    entry["last_collected_count"] = collected_count
+    entry["last_truncated"] = truncated
+    entry["last_status"] = status
