@@ -1,0 +1,23 @@
+
+FROM python:3.9-slim
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements
+COPY requirements-producer.txt /app/requirements-producer.txt
+RUN pip install --no-cache-dir -r /app/requirements-producer.txt
+
+# Copy the entire project
+COPY . /app
+
+# Set Python path
+ENV PYTHONPATH=/app
+ENV PYTHONUNBUFFERED=1
+
+# Default command (can be overridden in docker-compose.yml)
+CMD ["python", "-u", "/app/github_bigdata_pipeline/collector/produce_issues.py"]
