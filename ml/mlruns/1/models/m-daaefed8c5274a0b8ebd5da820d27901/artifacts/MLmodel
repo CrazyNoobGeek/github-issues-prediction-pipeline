@@ -1,0 +1,22 @@
+artifact_path: file:///C:/Zakaria/Master_AI/Big Data/github-issue-data-collector/ml/mlruns/1/models/m-daaefed8c5274a0b8ebd5da820d27901/artifacts
+flavors:
+  python_function:
+    env:
+      conda: conda.yaml
+      virtualenv: python_env.yaml
+    loader_module: mlflow.sklearn
+    model_path: model.pkl
+    predict_fn: predict
+    python_version: 3.10.19
+  sklearn:
+    code: null
+    pickled_model: model.pkl
+    serialization_format: cloudpickle
+    sklearn_version: 1.7.2
+mlflow_version: 3.8.1
+model_id: m-daaefed8c5274a0b8ebd5da820d27901
+model_size_bytes: 1574873
+model_uuid: m-daaefed8c5274a0b8ebd5da820d27901
+prompts: null
+run_id: 84dda564e3074bbaa157f5cddce9c245
+utc_time_created: '2026-01-25 11:59:31.578869'

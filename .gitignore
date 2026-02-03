@@ -1,17 +1,16 @@
-# Secrets
+
 .env
 *.env
 
-# Data
-data/
+
 logs/
 
-# State
+
 *.jsonl
 issues_state.json
 repos_state.json
 
-# Python
+
 __pycache__/
 *.pyc
 *.pyo
