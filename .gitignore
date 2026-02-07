@@ -1,19 +1,43 @@
-
+# Secrets
 .env
 *.env
 
-
+# Logs
 logs/
+Data_Collector/logs/
+Data_Collector/github_collector/logs/
 
-
+# Local data/state (generated)
+data/
+Data_Collector/data/
 *.jsonl
 issues_state.json
 repos_state.json
 
+# ML / experiment artifacts (generated, large)
+mlruns/
+ml/artifacts/
+ml/models/*.joblib
+ml/models/*.pkl
+ml/models/*.pt
+ml/models/*.pth
+ml/models/*.onnx
 
+# Common generated data formats
+*.parquet
+*.csv
+*.tsv
+*.npy
+*.npz
+
+# Python caches / virtualenv
 __pycache__/
 *.pyc
 *.pyo
 *.pyd
 .venv/
+venv/
 env/
+
+# IDE (optional: keep if you want to share workspace settings)
+.vscode/

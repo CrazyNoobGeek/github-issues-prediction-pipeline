@@ -4,24 +4,44 @@
   "log_dir": "logs",
 
   "repo_sources": {
-    "orgs": ["kubernetes", "apache", "microsoft"],
-    "search_queries": [
-      "stars:>5000 language:Python",
-      "stars:>5000 language:JavaScript",
-      "stars:>5000 language:Java"
+    "orgs": [
+      "kubernetes",
+      "apache",
+      "microsoft",
+      "google",
+      "facebook",
+      "aws",
+      "hashicorp",
+      "elastic",
+      "grafana",
+      "open-telemetry",
+      "envoyproxy",
+      "cncf",
+      "openstack",
+      "ansible",
+      "home-assistant"
     ],
-    "max_repos_total": 200
+    "search_queries": [
+      "stars:>1000 language:Python archived:false",
+      "stars:>1000 language:JavaScript archived:false",
+      "stars:>1000 language:TypeScript archived:false",
+      "stars:>1000 language:Java archived:false",
+      "stars:>1000 language:Go archived:false",
+      "stars:>1000 language:C++ archived:false",
+      "stars:>1000 language:Rust archived:false"
+    ],
+    "max_repos_total": 600
   },
 
   "issues_collection": {
-    "default_since": "2024-01-01T00:00:00Z",
-    "max_repos_per_run": 200,
-    "max_pages_per_repo": 50,
+    "default_since": "2017-01-01T00:00:00Z",
+    "max_repos_per_run": 100,
+    "max_pages_per_repo": 200,
     "include_state": "all",
 
-    "since_overlap_seconds": 600,
+    "since_overlap_seconds": 900,
 
     "collect_first_comment": true,
-    "max_first_comment_fetch": 400
+    "max_first_comment_fetch": 800
   }
 }
