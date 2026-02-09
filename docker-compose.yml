@@ -137,12 +137,14 @@ services:
       - "8501:8501"
     depends_on:
       - mongodb
-    environment:
-      - MONGODB_URI=mongodb://root:rootpassword@mongodb:27017/
+    volumes:
+      - ./dashboard:/app           
+      - ./ml:/app/ml               
     networks:
       - pipeline-network
-    volumes:
-      - ./dashboard:/app  # Permet de modifier le code sans redémarrer le conteneur (Hot reload)
+    environment:
+      - MONGODB_URI=mongodb://root:rootpassword@mongodb:27017/
+      - PYTHONPATH=/app            
   mlflow:
     image: ghcr.io/mlflow/mlflow:v2.10.0
     container_name: mlflow-server
