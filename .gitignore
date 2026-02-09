@@ -8,7 +8,6 @@ Data_Collector/logs/
 Data_Collector/github_collector/logs/
 
 # Local data/state (generated)
-data/
 Data_Collector/data/
 *.jsonl
 issues_state.json
