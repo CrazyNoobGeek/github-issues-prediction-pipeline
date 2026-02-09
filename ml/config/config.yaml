@@ -1,0 +1,21 @@
+data_source: "jsonl"  # jsonl | mongo
+
+jsonl_root: "data/raw/issues"   # your raw collector output root
+
+mongo:
+  uri: "mongodb://localhost:27017"
+  db: "github"
+  collection: "issues_clean"
+
+artifacts_dir: "ml/artifacts"
+
+embed:
+  model_name: "sentence-transformers/all-MiniLM-L6-v2"
+  batch_size: 64
+  normalize: true
+  prefer_gpu: true
+
+training:
+  time_split: true
+  calibrate: true
+  days_to_close_cap: 365

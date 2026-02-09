@@ -1,9 +1,30 @@
+import argparse
+import json
 import os
 import re
 from collections import defaultdict
 from pathlib import Path
 
-RAW_DIR = Path("data/raw")
+BASE_DIR = Path(__file__).resolve().parent
+DEFAULT_CONFIG_PATH = BASE_DIR / "config.json"
+
+
+def resolve_raw_dir(raw_dir: str | None, config_path: Path = DEFAULT_CONFIG_PATH) -> Path:
+    if raw_dir:
+        candidate = Path(raw_dir)
+        return candidate if candidate.is_absolute() else (BASE_DIR / candidate)
+
+    if config_path.exists():
+        try:
+            cfg = json.loads(config_path.read_text(encoding="utf-8"))
+            cfg_raw = cfg.get("raw_dir")
+            if isinstance(cfg_raw, str) and cfg_raw.strip():
+                candidate = Path(cfg_raw)
+                return candidate if candidate.is_absolute() else (BASE_DIR / candidate)
+        except Exception:
+            pass
+
+    return BASE_DIR / "data/raw"
 
 
 def count_lines(path: Path) -> int:
@@ -52,12 +73,22 @@ def extract_org(repo_full: str | None) -> str | None:
 
 
 def main() -> None:
-    issues_dir = RAW_DIR / "issues"
-    repos_dir = RAW_DIR / "repos"
+    parser = argparse.ArgumentParser(description="Summarize collected GitHub JSONL data")
+    parser.add_argument(
+        "--raw-dir",
+        default=os.environ.get("RAW_DIR"),
+        help="Path to raw data dir (defaults to config.json raw_dir, else Data_Collector/data/raw).",
+    )
+    args = parser.parse_args()
 
-    print("RAW_DIR exists:", RAW_DIR.exists())
-    if RAW_DIR.exists():
-        print("RAW_DIR content:", [p.name for p in RAW_DIR.iterdir()])
+    raw_dir = resolve_raw_dir(args.raw_dir)
+    issues_dir = raw_dir / "issues"
+    repos_dir = raw_dir / "repos"
+
+    print("RAW_DIR:", str(raw_dir))
+    print("RAW_DIR exists:", raw_dir.exists())
+    if raw_dir.exists():
+        print("RAW_DIR content:", [p.name for p in raw_dir.iterdir()])
 
 
     repo_total_records = 0
