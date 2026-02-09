@@ -6,19 +6,11 @@ import re
 from datetime import datetime, timezone
 from typing import Any, Dict, List
 
-<<<<<<< HEAD:run_collector.py
 from github_bigdata_pipeline.collector.github_client import GitHubClient
 from github_bigdata_pipeline.collector.io_utils import ensure_dir, write_jsonl
 from github_bigdata_pipeline.collector.repos import collect_repos
 from github_bigdata_pipeline.collector.issues import collect_issues_for_repo, max_updated_at, subtract_overlap
 from github_bigdata_pipeline.collector.state import (
-=======
-from github_collector.collector.github_client import GitHubClient
-from github_collector.collector.io_utils import ensure_dir, write_jsonl
-from github_collector.collector.repos import collect_repos
-from github_collector.collector.issues import collect_issues_for_repo, max_updated_at, subtract_overlap
-from github_collector.collector.state import (
->>>>>>> 84cf380753503666706c397f128aeb2cf66bac0c:Data_Collector/run_collector.py
     load_json,
     save_json,
     repo_state_path,

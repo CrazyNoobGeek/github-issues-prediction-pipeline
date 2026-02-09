@@ -130,6 +130,30 @@ services:
     networks:
       - pipeline-network
     command: python -u /app/github_bigdata_pipeline/collector/produce_issues.py
+  dashboard:
+    build: ./dashboard
+    container_name: streamlit-dashboard
+    ports:
+      - "8501:8501"
+    depends_on:
+      - mongodb
+    environment:
+      - MONGODB_URI=mongodb://root:rootpassword@mongodb:27017/
+    networks:
+      - pipeline-network
+    volumes:
+      - ./dashboard:/app  # Permet de modifier le code sans redémarrer le conteneur (Hot reload)
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v2.10.0
+    container_name: mlflow-server
+    ports:
+      - "5000:5000"
+    command: mlflow server --backend-store-uri sqlite:///mlflow.db --default-artifact-root /mlflow-artifacts --host 0.0.0.0
+    volumes:
+      - ./mlflow-data:/mlflow-artifacts
+      - ./mlflow-db:/mlflow-db
+    networks:
+      - pipeline-network
 
 volumes:
   mongo-data:
@@ -138,3 +162,4 @@ volumes:
 networks:
   pipeline-network:
     driver: bridge
+
