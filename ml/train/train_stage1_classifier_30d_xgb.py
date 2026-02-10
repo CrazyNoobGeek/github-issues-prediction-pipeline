@@ -1,4 +1,3 @@
-# ml/train/train_stage1_classifier_30d_xgb.py
 from __future__ import annotations
 
 import os
@@ -32,6 +31,45 @@ from sklearn.isotonic import IsotonicRegression
 from sklearn.model_selection import TimeSeriesSplit
 
 
+
+def _configure_mlflow(default_experiment: str) -> str:
+    """
+    Ensures MLflow always logs to the SAME persistent directory so that:
+      - runs are visible later in mlflow ui
+      - no "recovered_exp_* / Invalid Date" issues from mixed stores
+    Priority:
+      1) MLFLOW_TRACKING_URI (file:/abs/path)
+      2) MLFLOW_TRACKING_DIR (abs/path or relative; will be resolved)
+      3) fallback: <repo>/mlruns
+    """
+    repo = Path(__file__).resolve().parents[2]
+
+    tracking_uri = os.getenv("MLFLOW_TRACKING_URI", "").strip()
+    tracking_dir = os.getenv("MLFLOW_TRACKING_DIR", "").strip()
+
+    if tracking_uri:
+        # if user wrote "file:/path" keep it
+        mlflow.set_tracking_uri(tracking_uri)
+        # try to mkdir for file store
+        if tracking_uri.startswith("file:"):
+            p = Path(tracking_uri.replace("file:", "", 1)).expanduser().resolve()
+            p.mkdir(parents=True, exist_ok=True)
+    else:
+        if tracking_dir:
+            p = Path(tracking_dir).expanduser()
+            if not p.is_absolute():
+                p = (repo / p).resolve()
+        else:
+            p = (repo / "mlruns").resolve()
+
+        p.mkdir(parents=True, exist_ok=True)
+        mlflow.set_tracking_uri(f"file:{p}")
+
+    exp_name = os.getenv("MLFLOW_EXPERIMENT", default_experiment).strip() or default_experiment
+    mlflow.set_experiment(exp_name)
+    return exp_name
+
+
 # ----------------------------
 # Features (tabular must match Stage2)
 # ----------------------------
@@ -53,7 +91,6 @@ LABEL_FLAGS = [
     ("has_help_wanted", ["help wanted"]),
 ]
 
-# Train-only repo features (must be computed using TRAIN only!)
 REPO_FEATURES = ["repo_count_train", "repo_posrate_train"]
 
 ALL_FEATURES_ORDER = (
@@ -65,7 +102,6 @@ ALL_FEATURES_ORDER = (
     + REPO_FEATURES
 )
 
-# Columns that must NEVER enter X (targets / target-derived / future signals)
 FORBIDDEN_INPUT_COLS = {
     "days_to_close", "resolved_30d", "is_closed", "close_within_h", "close_within_H",
     "closed_at", "closed_ts", "updated_at", "updated_ts", "first_comment_at", "first_comment_ts",
@@ -94,9 +130,6 @@ def _savefig(path: Path) -> None:
     plt.close()
 
 
-# ----------------------------
-# Embeddings (supports pointer embed_meta.json)
-# ----------------------------
 def load_embedding_bundle(artifacts_dir: Path) -> Tuple[np.ndarray, Dict[str, int], str, Dict[str, Any]]:
     emb_dir = artifacts_dir / "embeddings"
     ptr_path = emb_dir / "embed_meta.json"
@@ -157,9 +190,6 @@ def align_embeddings(df: pd.DataFrame, emb_all: np.ndarray, row_to_idx: Dict[str
     return emb_all[np.asarray(idxs, dtype=int)]
 
 
-# ----------------------------
-# Split helpers
-# ----------------------------
 def time_split(df: pd.DataFrame, train=0.8, dev=0.1, test=0.1):
     if not np.isclose(train + dev + test, 1.0):
         raise ValueError("train+dev+test must sum to 1.0")
@@ -170,9 +200,6 @@ def time_split(df: pd.DataFrame, train=0.8, dev=0.1, test=0.1):
     return df.iloc[:n_train].copy(), df.iloc[n_train:n_train + n_dev].copy(), df.iloc[n_train + n_dev:].copy()
 
 
-# ----------------------------
-# Train-only repo encoding (NO leakage)
-# ----------------------------
 def fit_repo_features_train_only(train_df: pd.DataFrame, y_train: np.ndarray) -> Dict[str, Any]:
     repo = train_df.get("repo_full_name", pd.Series(["UNKNOWN"] * len(train_df))).astype(str)
     repo_counts = repo.value_counts().to_dict()
@@ -230,29 +257,20 @@ def build_tabular(
     repo_fit: Dict[str, Any],
     prediction_moment: str,
 ) -> pd.DataFrame:
-    """
-    prediction_moment:
-      - "latest": use features as present in dataset
-      - "t0": creation-time only (removes post-creation signals: comments, ttf)
-    """
     df = df.copy()
 
-    # Base numeric features
     for c in TABULAR_BASE:
         df[c] = pd.to_numeric(df.get(c, 0), errors="coerce").fillna(0).astype(float)
 
-    # Strict T0
     if prediction_moment == "t0":
         df["comments"] = 0.0
         df["ttf_hours"] = np.nan
 
-    # Extra
     if "body" in df.columns:
         df["body_missing"] = df["body"].isna().astype(float)
     else:
         df["body_missing"] = 0.0
 
-    # TTF features
     ttf = pd.to_numeric(df.get("ttf_hours", np.nan), errors="coerce")
     df["ttf_missing"] = ttf.isna().astype(float)
     ttf_filled = ttf.fillna(ttf_fill_value_train)
@@ -265,13 +283,11 @@ def build_tabular(
 
     tab = pd.concat([df[TABULAR_BASE + TTF_FEATURES + EXTRA_FEATURES], lab, auth, repo_feats], axis=1)
 
-    # deterministic ordering
     for c in ALL_FEATURES_ORDER:
         if c not in tab.columns:
             tab[c] = 0.0
     tab = tab[ALL_FEATURES_ORDER].astype(float)
 
-    # forbidden check (extra safety)
     bad = set(tab.columns).intersection(FORBIDDEN_INPUT_COLS)
     if bad:
         raise RuntimeError(f"Leakage: forbidden columns found in tabular X: {bad}")
@@ -279,9 +295,6 @@ def build_tabular(
     return tab
 
 
-# ----------------------------
-# Threshold selection & metrics
-# ----------------------------
 def best_threshold_by_f1(y_true: np.ndarray, probs: np.ndarray) -> Tuple[float, float]:
     prec, rec, thr = precision_recall_curve(y_true, probs)
     f1s = (2 * prec * rec) / (prec + rec + 1e-12)
@@ -307,11 +320,6 @@ def cls_metrics(y: np.ndarray, probs: np.ndarray, thr: float) -> Dict[str, float
     return out
 
 
-# ----------------------------
-# Time-series CV on TRAIN only (OOF predictions for threshold)
-# NOTE: TimeSeriesSplit leaves an initial block never validated -> OOF NaNs are expected.
-# We compute threshold on the VALID OOF subset only.
-# ----------------------------
 def time_cv_oof_predictions(
     train_df: pd.DataFrame,
     y_train: np.ndarray,
@@ -323,12 +331,6 @@ def time_cv_oof_predictions(
     n_splits: int,
     prediction_moment: str,
 ) -> Tuple[np.ndarray, List[int], float]:
-    """
-    Returns:
-      - oof_probs (aligned to sorted train_df order; may contain NaNs for initial block)
-      - best_iterations per fold
-      - oof_coverage = fraction of rows that got a validation prediction
-    """
     train_df = train_df.sort_values("created_ts").reset_index(drop=True)
     y_train = y_train.astype(int)
 
@@ -342,7 +344,6 @@ def time_cv_oof_predictions(
         y_tr = y_train[tr_idx]
         y_va = y_train[va_idx]
 
-        # Train-only fits
         ttf_tr = pd.to_numeric(tr_df.get("ttf_hours", np.nan), errors="coerce")
         ttf_fill = float(ttf_tr.median(skipna=True)) if ttf_tr.notna().any() else 0.0
         repo_fit = fit_repo_features_train_only(tr_df, y_tr)
@@ -365,45 +366,37 @@ def time_cv_oof_predictions(
             verbose_eval=False,
         )
         best_iters.append(int(getattr(booster, "best_iteration", 0) or 0))
-
         oof[va_idx] = booster.predict(dva)
 
     coverage = float(np.mean(~np.isnan(oof)))
     return oof, best_iters, coverage
 
 
-# ----------------------------
-# Main
-# ----------------------------
 def main() -> None:
     artifacts_dir = _artifacts_dir()
     df_path = artifacts_dir / "datasets" / "issues_clean_latest.parquet"
     if not df_path.exists():
         raise FileNotFoundError(f"Missing dataset: {df_path}")
 
-    mlflow.set_experiment(os.getenv("MLFLOW_EXPERIMENT", "github_stage1_close30_xgb_cv"))
 
-    # Outer split
+    exp_name = _configure_mlflow("github_stage1_close30_xgb_cv")
+
     train_frac = float(os.getenv("TRAIN_FRAC", "0.8"))
     dev_frac = float(os.getenv("DEV_FRAC", "0.1"))
     test_frac = float(os.getenv("TEST_FRAC", "0.1"))
 
     horizon_days = int(os.getenv("HORIZON_DAYS", "30"))
     tree_method = os.getenv("TREE_METHOD", "hist")
-
-    # CV controls (inner split on TRAIN only)
     n_splits = int(os.getenv("CV_SPLITS", "5"))
 
     num_boost_round = int(os.getenv("N_ESTIMATORS", "8000"))
     early_stopping = int(os.getenv("EARLY_STOPPING_ROUNDS", "250"))
-
     calibrate = int(os.getenv("CALIBRATE", "1")) == 1
 
-    prediction_moment = os.getenv("PREDICTION_MOMENT", "latest").lower()  # latest | t0
+    prediction_moment = os.getenv("PREDICTION_MOMENT", "latest").lower()
     if prediction_moment not in ("latest", "t0"):
         raise ValueError("PREDICTION_MOMENT must be 'latest' or 't0'")
 
-    # XGB params (regularized defaults)
     params: Dict[str, Any] = {
         "objective": "binary:logistic",
         "eval_metric": "logloss",
@@ -426,7 +419,6 @@ def main() -> None:
         if c not in df.columns:
             raise ValueError(f"Missing column {c} in dataset")
 
-    # Target: close within horizon
     days = pd.to_numeric(df["days_to_close"], errors="coerce")
     df["close_within_h"] = ((days.notna()) & (days <= float(horizon_days))).astype(int)
 
@@ -436,15 +428,12 @@ def main() -> None:
     y_dev = dev_df["close_within_h"].astype(int).to_numpy()
     y_test = test_df["close_within_h"].astype(int).to_numpy()
 
-    # class imbalance handling (train only)
     pos = max(1, int(np.sum(y_train == 1)))
     neg = max(1, int(np.sum(y_train == 0)))
     params["scale_pos_weight"] = float(os.getenv("SCALE_POS_WEIGHT", str(float(neg / pos))))
 
-    # Embeddings
     emb_all, row_to_idx, embed_model, embed_meta = load_embedding_bundle(artifacts_dir)
 
-    # -------- Inner CV on TRAIN: OOF predictions + threshold on VALID OOF subset --------
     oof_probs, best_iters, oof_cov = time_cv_oof_predictions(
         train_df=train_df,
         y_train=y_train,
@@ -466,7 +455,6 @@ def main() -> None:
     thr, oof_best_f1 = best_threshold_by_f1(y_train[valid], oof_probs[valid])
     best_iter_cv = int(np.median(best_iters))
 
-    # -------- Final training: TRAIN -> early stop on DEV --------
     ttf_tr = pd.to_numeric(train_df.get("ttf_hours", np.nan), errors="coerce")
     ttf_fill = float(ttf_tr.median(skipna=True)) if ttf_tr.notna().any() else 0.0
     repo_fit = fit_repo_features_train_only(train_df, y_train)
@@ -486,6 +474,12 @@ def main() -> None:
     evals_result: Dict[str, Any] = {}
 
     with mlflow.start_run():
+        # ✅ useful tags for UI filtering
+        mlflow.set_tag("stage", "stage1")
+        mlflow.set_tag("model_family", "xgboost")
+        mlflow.set_tag("experiment_name", exp_name)
+        mlflow.set_tag("tracking_uri", mlflow.get_tracking_uri())
+
         mlflow.log_param("task", "stage1_classifier_close_within_horizon")
         mlflow.log_param("horizon_days", horizon_days)
         mlflow.log_param("prediction_moment", prediction_moment)
@@ -523,13 +517,12 @@ def main() -> None:
         calibrator: Optional[IsotonicRegression] = None
         if calibrate:
             calibrator = IsotonicRegression(out_of_bounds="clip")
-            calibrator.fit(p_dev, y_dev)  # fit on DEV only
+            calibrator.fit(p_dev, y_dev)
             p_train = calibrator.transform(p_train)
             p_dev = calibrator.transform(p_dev)
             p_test = calibrator.transform(p_test)
         mlflow.log_param("calibrate_isotonic", int(calibrate))
 
-        # Use threshold from OOF valid subset
         train_m = cls_metrics(y_train, p_train, thr)
         dev_m = cls_metrics(y_dev, p_dev, thr)
         test_m = cls_metrics(y_test, p_test, thr)
@@ -598,7 +591,6 @@ def main() -> None:
             (pdir / "evals_result.json").write_text(json.dumps(evals_result, indent=2), encoding="utf-8")
             mlflow.log_artifacts(str(pdir), artifact_path="plots")
 
-        # Save
         model_dir = _models_dir()
         booster_json = model_dir / f"stage1_close{horizon_days}_booster.json"
         booster.save_model(str(booster_json))

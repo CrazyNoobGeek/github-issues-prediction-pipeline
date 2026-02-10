@@ -1,5 +1,3 @@
-# ml/data/load_mongo.py
-
 from __future__ import annotations
 from typing import Any, Dict, List
 from pymongo import MongoClient

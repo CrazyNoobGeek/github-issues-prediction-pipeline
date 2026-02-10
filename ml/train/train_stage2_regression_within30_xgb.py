@@ -1,4 +1,3 @@
-# ml/train/train_stage2_regression_within30_xgb.py
 from __future__ import annotations
 
 import os
@@ -27,8 +26,35 @@ from sklearn.model_selection import TimeSeriesSplit
 
 
 # ----------------------------
-# Features (must match Stage1)
+# MLflow bootstrap (ONLY MLflow part)
 # ----------------------------
+def _configure_mlflow(default_experiment: str) -> str:
+    repo = Path(__file__).resolve().parents[2]
+
+    tracking_uri = os.getenv("MLFLOW_TRACKING_URI", "").strip()
+    tracking_dir = os.getenv("MLFLOW_TRACKING_DIR", "").strip()
+
+    if tracking_uri:
+        mlflow.set_tracking_uri(tracking_uri)
+        if tracking_uri.startswith("file:"):
+            p = Path(tracking_uri.replace("file:", "", 1)).expanduser().resolve()
+            p.mkdir(parents=True, exist_ok=True)
+    else:
+        if tracking_dir:
+            p = Path(tracking_dir).expanduser()
+            if not p.is_absolute():
+                p = (repo / p).resolve()
+        else:
+            p = (repo / "mlruns").resolve()
+
+        p.mkdir(parents=True, exist_ok=True)
+        mlflow.set_tracking_uri(f"file:{p}")
+
+    exp_name = os.getenv("MLFLOW_EXPERIMENT", default_experiment).strip() or default_experiment
+    mlflow.set_experiment(exp_name)
+    return exp_name
+
+
 TABULAR_BASE = [
     "comments", "num_assignees", "labels_count",
     "title_len", "body_len", "has_body",
@@ -86,9 +112,6 @@ def _savefig(path: Path) -> None:
     plt.close()
 
 
-# ----------------------------
-# Embeddings
-# ----------------------------
 def load_embedding_bundle(artifacts_dir: Path) -> Tuple[np.ndarray, Dict[str, int], str, Dict[str, Any]]:
     emb_dir = artifacts_dir / "embeddings"
     ptr_path = emb_dir / "embed_meta.json"
@@ -149,9 +172,6 @@ def align_embeddings(df: pd.DataFrame, emb_all: np.ndarray, row_to_idx: Dict[str
     return emb_all[np.asarray(idxs, dtype=int)]
 
 
-# ----------------------------
-# Splits
-# ----------------------------
 def time_split(df: pd.DataFrame, train=0.8, dev=0.1, test=0.1):
     if not np.isclose(train + dev + test, 1.0):
         raise ValueError("train+dev+test must sum to 1.0")
@@ -162,9 +182,6 @@ def time_split(df: pd.DataFrame, train=0.8, dev=0.1, test=0.1):
     return df.iloc[:n_train].copy(), df.iloc[n_train:n_train + n_dev].copy(), df.iloc[n_train + n_dev:].copy()
 
 
-# ----------------------------
-# Train-only repo encoding
-# ----------------------------
 def fit_repo_features_train_only(train_df: pd.DataFrame, y_train_days: np.ndarray) -> Dict[str, Any]:
     repo = train_df.get("repo_full_name", pd.Series(["UNKNOWN"] * len(train_df))).astype(str)
     repo_counts = repo.value_counts().to_dict()
@@ -261,9 +278,6 @@ def build_tabular(
     return tab
 
 
-# ----------------------------
-# Metrics
-# ----------------------------
 def metrics_days(y_true: np.ndarray, y_pred: np.ndarray) -> Dict[str, float]:
     abs_err = np.abs(y_pred - y_true)
     return {
@@ -282,10 +296,6 @@ def _clamp_preds(pred: np.ndarray, horizon_days: int) -> np.ndarray:
     return np.clip(pred, 0.0, float(horizon_days))
 
 
-# ----------------------------
-# Time-series CV (TRAIN only) to estimate best_iteration stability
-# NOTE: For regression we only use CV for best_iteration signal (not OOF threshold).
-# ----------------------------
 def time_cv_best_iters(
     train_df: pd.DataFrame,
     y_train: np.ndarray,
@@ -346,16 +356,14 @@ def time_cv_best_iters(
     return best_iters
 
 
-# ----------------------------
-# Main
-# ----------------------------
 def main() -> None:
     artifacts_dir = _artifacts_dir()
     df_path = artifacts_dir / "datasets" / "issues_clean_latest.parquet"
     if not df_path.exists():
         raise FileNotFoundError(f"Missing dataset: {df_path}")
 
-    mlflow.set_experiment(os.getenv("MLFLOW_EXPERIMENT", "github_stage2_within30_reg_xgb_cv"))
+
+    exp_name = _configure_mlflow("github_stage2_within30_reg_xgb_cv")
 
     train_frac = float(os.getenv("TRAIN_FRAC", "0.8"))
     dev_frac = float(os.getenv("DEV_FRAC", "0.1"))
@@ -376,7 +384,7 @@ def main() -> None:
 
     params: Dict[str, Any] = {
         "objective": os.getenv("XGB_OBJECTIVE", "reg:pseudohubererror"),
-        "eval_metric": "mae",  # on log1p target
+        "eval_metric": "mae",
         "max_depth": int(os.getenv("MAX_DEPTH", "4")),
         "eta": float(os.getenv("LEARNING_RATE", "0.03")),
         "subsample": float(os.getenv("SUBSAMPLE", "0.8")),
@@ -396,7 +404,6 @@ def main() -> None:
         if c not in df.columns:
             raise ValueError(f"Missing column {c} in dataset")
 
-    # keep only closed <= horizon
     days = pd.to_numeric(df["days_to_close"], errors="coerce")
     df = df[(days.notna()) & (days <= float(horizon_days))].copy()
     df["days_to_close"] = pd.to_numeric(df["days_to_close"], errors="coerce")
@@ -413,7 +420,6 @@ def main() -> None:
     y_dev = dev_df["days_to_close"].astype(float).to_numpy()
     y_test = test_df["days_to_close"].astype(float).to_numpy()
 
-    # CV for stability signal
     best_iters = time_cv_best_iters(
         train_df=train_df,
         y_train=y_train,
@@ -428,7 +434,6 @@ def main() -> None:
     )
     best_iter_cv = int(np.median(best_iters))
 
-    # Final fit (TRAIN -> early stop on DEV)
     ttf_tr = pd.to_numeric(train_df.get("ttf_hours", np.nan), errors="coerce")
     ttf_fill = float(ttf_tr.median(skipna=True)) if ttf_tr.notna().any() else 0.0
     repo_fit = fit_repo_features_train_only(train_df, y_train)
@@ -463,6 +468,11 @@ def main() -> None:
     baseline_test_m = metrics_days(y_test, baseline_test_pred)
 
     with mlflow.start_run():
+        mlflow.set_tag("stage", "stage2")
+        mlflow.set_tag("model_family", "xgboost")
+        mlflow.set_tag("experiment_name", exp_name)
+        mlflow.set_tag("tracking_uri", mlflow.get_tracking_uri())
+
         mlflow.log_param("task", "stage2_regression_days_to_close_within_horizon")
         mlflow.log_param("horizon_days", horizon_days)
         mlflow.log_param("prediction_moment", prediction_moment)

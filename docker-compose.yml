@@ -111,6 +111,7 @@ services:
     networks:
       - pipeline-network
 
+  # --- MODIFICATIONS ICI POUR LE LIVE MONITORING ---
   kafka-producer:
     build:
       context: .
@@ -122,14 +123,20 @@ services:
     environment:
       - KAFKA_BOOTSTRAP_SERVERS=kafka:29092
       - KAFKA_TOPIC=github.issues.raw
+      # Cible Kubernetes pour la démo
+      - TARGET_REPO=kubernetes/kubernetes
+      # Scan toutes les 60 secondes
+      - POLL_INTERVAL=60
+      # Ton token GitHub (assure-toi de l'avoir exporté ou mis dans un fichier .env)
       - GITHUB_TOKEN=${GITHUB_TOKEN}
-      - COLLECTOR_CONFIG=/app/config.json
       - PYTHONPATH=/app
     volumes:
       - .:/app
     networks:
       - pipeline-network
+    # On garde le chemin vers ton fichier existant (dont on a changé le contenu)
     command: python -u /app/github_bigdata_pipeline/collector/produce_issues.py
+
   dashboard:
     build: ./dashboard
     container_name: streamlit-dashboard
@@ -144,12 +151,31 @@ services:
       - pipeline-network
     environment:
       - MONGODB_URI=mongodb://root:rootpassword@mongodb:27017/
-      - PYTHONPATH=/app            
+      - PYTHONPATH=/app        
+  train-viz:
+    build: ./dashboard
+    container_name: train-data-audit
+    command: >
+      streamlit run train_viz.py 
+      --server.port 8502 
+      --server.address 0.0.0.0 
+      --server.enableCORS false 
+      --server.enableXsrfProtection false
+    ports:
+      - "8502:8502"
+    volumes:
+      - ./dashboard:/app           # Pour que Docker voit ton fichier train_viz.py
+      - ./ml:/app/ml               # Si tu as besoin de tes fonctions ML
+      - /Users/user/Documents/github-issues-prediction-pipeline/issues_merged.json:/app/issues_merged.json # ✅ LE PONT : Ton fichier local -> Docker
+    networks:
+      - pipeline-network
+    environment:
+      - PYTHONPATH=/app
   mlflow:
     image: ghcr.io/mlflow/mlflow:v2.10.0
     container_name: mlflow-server
     ports:
-      - "5000:5000"
+      - "5001:5000"
     command: mlflow server --backend-store-uri sqlite:///mlflow.db --default-artifact-root /mlflow-artifacts --host 0.0.0.0
     volumes:
       - ./mlflow-data:/mlflow-artifacts
@@ -164,4 +190,3 @@ volumes:
 networks:
   pipeline-network:
     driver: bridge
-

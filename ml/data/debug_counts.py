@@ -5,7 +5,6 @@ import pandas as pd
 
 
 def find_dataset_parquet() -> Path:
-    # Works whether you run from repo root or from inside `ml/`.
     here = Path.cwd()
     repo_root = Path(__file__).resolve().parents[2]
 

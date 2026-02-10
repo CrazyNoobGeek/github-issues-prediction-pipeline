@@ -11,5 +11,5 @@ sentence-transformers
 torch
 
 xgboost
-
+dask
 matplotlib

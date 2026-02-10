@@ -1,5 +1,3 @@
-# ml/features/embed_text.py
-
 from __future__ import annotations
 from typing import List
 import numpy as np
@@ -7,7 +5,7 @@ from sentence_transformers import SentenceTransformer
 import torch
 from pathlib import Path
 import hashlib
-import json  # ✅ FIX: missing
+import json 
 
 
 def get_device(prefer_gpu: bool = True) -> str:

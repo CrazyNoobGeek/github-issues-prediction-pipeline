@@ -9,18 +9,18 @@ Data_Collector/github_collector/logs/
 
 # Local data/state (generated)
 Data_Collector/data/
+Data_Collector/issues_merged.json
 *.jsonl
 issues_state.json
 repos_state.json
+*.json
+issues_merged.json
 
 # ML / experiment artifacts (generated, large)
 mlruns/
 ml/artifacts/
 ml/models/*.joblib
-ml/models/*.pkl
-ml/models/*.pt
-ml/models/*.pth
-ml/models/*.onnx
+
 
 # Common generated data formats
 *.parquet

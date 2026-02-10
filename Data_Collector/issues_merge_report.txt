@@ -1,0 +1,7 @@
+Input dir: Data_Collector/data/raw/issues
+Output: Data_Collector/issues_merged.json
+Total files matched: 2918
+Processed files: 2918
+Skipped files: 0
+Total records written: 782473
+Malformed JSONL lines skipped: 0

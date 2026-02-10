@@ -1,5 +1,3 @@
-# ml/data/build_dataset.py
-
 from __future__ import annotations
 
 import os
@@ -92,7 +90,7 @@ def _ensure_required_columns(df: pd.DataFrame) -> pd.DataFrame:
         if c not in df.columns:
             df[c] = None
 
-    # Normalize a few types early (safe)
+    # Normalize a few types early
     # Ensure booleans are real booleans where possible
     if "is_pull_request" in df.columns:
         df["is_pull_request"] = df["is_pull_request"].fillna(False).astype(bool)

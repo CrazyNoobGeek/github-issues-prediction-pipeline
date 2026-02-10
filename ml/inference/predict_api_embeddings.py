@@ -1,5 +1,3 @@
-# ml/inference/predict_api_embeddings.py
-
 from __future__ import annotations
 import joblib
 import numpy as np

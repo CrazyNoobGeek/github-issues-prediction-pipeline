@@ -27,9 +27,10 @@ nvidia-smi || true
 export PYTHONPATH="$PROJECT_ROOT:${PYTHONPATH:-}"
 export ARTIFACTS_DIR="$PROJECT_ROOT/ml/artifacts"
 
+export MLFLOW_TRACKING_URI="file:$PROJECT_ROOT/mlruns"
+export MLFLOW_EXPERIMENT_NAME_STAGE1="github_stage1_close30_xgb_cv"
+export MLFLOW_EXPERIMENT_NAME_STAGE2="github_stage2_within30_reg_xgb_cv"
 
-export WANDB_PROJECT="github-issues-two-stage"
-export WANDB_MODE="online"   # or offline
 export HORIZON_DAYS="30"
 export TREE_METHOD="hist"
 

@@ -1,5 +1,3 @@
-#  Data_Collector/run_collector.py
-
 from __future__ import annotations
 
 import json
@@ -21,6 +19,10 @@ from github_bigdata_pipeline.collector.state import (
     set_since,
     set_repo_run_meta,
 )
+from github_collector.collector.github_client import GitHubClient
+from github_collector.collector.io_utils import ensure_dir, write_jsonl
+from github_collector.collector.repos import collect_repos
+from github_collector.collector.issues import collect_issues_for_repo, max_updated_at, subtract_overlap
 
 
 def utc_now_iso() -> str:
@@ -96,7 +98,7 @@ def main() -> None:
     truncated_repos = 0
     errors = 0
 
-    # You may want to skip repos that have has_issues=False
+
     repos_to_process = repos[:max_repos_per_run]
 
     for idx, r in enumerate(repos_to_process, start=1):
