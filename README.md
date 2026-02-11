@@ -249,13 +249,6 @@ github-issues-prediction-pipeline/
 
 ## 🤖 Machine Learning
 
-### Modèles disponibles
-
-| Modèle           | Description                    | Métrique |
-|------------------|--------------------------------|----------|
-| RandomForest     | Classification temps résolution | F1-Score |
-| XGBoost          | Gradient boosting              | RMSE     |
-| LinearRegression | Baseline régression            | MAE      |
 
 ### Features utilisées
 
