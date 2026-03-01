@@ -166,7 +166,7 @@ services:
     volumes:
       - ./dashboard:/app           # Pour que Docker voit ton fichier train_viz.py
       - ./ml:/app/ml               # Si tu as besoin de tes fonctions ML
-      - /Users/user/Documents/github-issues-prediction-pipeline/issues_merged.json:/app/issues_merged.json # ✅ LE PONT : Ton fichier local -> Docker
+      - ./Data_Collector/issues_merged.json:/app/issues_merged.json:ro
     networks:
       - pipeline-network
     environment:
