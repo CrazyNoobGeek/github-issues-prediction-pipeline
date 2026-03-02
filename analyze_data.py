@@ -10,7 +10,7 @@ print("\n" + "="*60)
 print(f"📊  GITHUB DATA ANALYTICS REPORT - {datetime.now().strftime('%Y-%m-%d %H:%M')}")
 print("="*60)
 
-# 1. Total Count
+# 1.Total Count
 total = collection.count_documents({})
 print(f"Total Issues Stored: {total:,}")
 print("-" * 60)
